@@ -2,8 +2,6 @@ const {
   showWelcomeMessage,
   showGetExcelFilePathDialog,
 } = require("./src/ui-handler");
-
-const { checkIfFileExists } = require("./src/fs-handler");
 const { ExcelWorkbook } = require("./src/excel-handler");
 
 const run = async () => {
