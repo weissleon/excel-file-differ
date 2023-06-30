@@ -1,5 +1,5 @@
 const fs = require("fs/promises");
-
+const path = require("path");
 const checkIfFileExists = async (filePath) => {
   try {
     await fs.access(filePath, fs.constants.R_OK);
@@ -27,7 +27,12 @@ const createDirectoryIfNotAlreadyExists = async (directoryPath) => {
   if (!directoryExists) createDirectory(directoryPath);
 };
 
+const joinPath = (...paths) => {
+  return path.join(...paths);
+};
+
 module.exports = {
   checkIfFileExists,
   createDirectoryIfNotAlreadyExists,
+  joinPath,
 };

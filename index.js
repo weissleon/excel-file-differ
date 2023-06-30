@@ -4,6 +4,8 @@ const {
 } = require("./src/ui-handler");
 const { ExcelWorkbook } = require("./src/excel-handler");
 
+const OUT_DIR = "./out";
+
 const run = async () => {
   showWelcomeMessage();
 
@@ -15,7 +17,16 @@ const run = async () => {
     "Please specify the target file path"
   );
 
-  const originalWb = new ExcelWorkbook(originalFilePath);
+  const originalWb = await new ExcelWorkbook().readFromFile(originalFilePath);
+  const targetWb = await new ExcelWorkbook().readFromFile(targetFilePath);
+
+  const [wbWithNewData, wbWithDeletedData] = ExcelWorkbook.diff(
+    originalWb,
+    targetWb
+  );
+
+  await wbWithNewData.writeToFile(OUT_DIR);
+  await wbWithDeletedData.writeToFile(OUT_DIR);
 };
 
 run();
