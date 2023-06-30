@@ -35,19 +35,15 @@ class ExcelWorkbook {
         .changeSheetTo(overlapworksheetName)
         .getAllRowsAsArray();
 
+      const newRowsKeys = new Map();
+      const deletedRowsKeys = new Map();
       const newRows = new Set();
       const deletedRows = new Set();
       let originalRowCursor = 0;
       let targetRowCursor = 0;
 
-      const originalHeader =
-        originalData.length > 0
-          ? originalData[0].filter((col) => !isValueEmpty(col))
-          : [];
-      const targetHeader =
-        targetData.length > 0
-          ? targetData[0].filter((col) => !isValueEmpty(col))
-          : [];
+      const originalHeader = originalData.length > 0 ? originalData[0] : [];
+      const targetHeader = targetData.length > 0 ? targetData[0] : [];
       // If the column length does not match, these sheets are considered different
       if (originalHeader.length !== targetHeader.length) {
         deletedWorksheetNames.add(overlapworksheetName);
@@ -76,15 +72,13 @@ class ExcelWorkbook {
         originalRowCursor < originalData.length &&
         targetRowCursor < targetData.length
       ) {
-        const originalRow = originalData[originalRowCursor].filter(
-          (cell) => !isValueEmpty(cell)
-        );
-        const targetRow = targetData[targetRowCursor].filter(
-          (cell) => !isValueEmpty(cell)
-        );
+        let originalRow = originalData[originalRowCursor];
+        const originalRowKey = originalRow.join(" ");
+        let targetRow = targetData[targetRowCursor];
+        const targetRowKey = targetRow.join(" ");
 
         let isRowIdentical = true;
-        for (let k = 0; k < originalRow.length; k++) {
+        for (let k = 1; k < originalRow.length; k++) {
           const originalCell = originalRow[k];
           const targetCell = targetRow[k];
 
@@ -95,20 +89,29 @@ class ExcelWorkbook {
         }
 
         if (!isRowIdentical) {
-          for (let k = 0; k < originalData.length; k++) {
-            const originalRowString = originalData[k].join(" ");
-            for (const newRow of newRows) {
-              const newRowString = newRow.join(" ");
-              if (originalRowString !== newRowString) break;
-              newRows.delete(newRow);
-              isRowIdentical = true;
-            }
+          if (newRowsKeys.has(originalRowKey)) {
+            newRows.delete(newRowsKeys.get(originalRowKey));
+            newRowsKeys.delete(originalRowKey);
+            isRowIdentical = true;
           }
+          // for (let k = 1; k < originalData.length; k++) {
+          //   const originalRowString = originalData[k].join(" ");
+          //   for (const newRow of newRows) {
+          //     const newRowString = newRow.join(" ");
+          //     if (originalRowString !== newRowString) break;
+          //     newRows.delete(newRow);
+          //     isRowIdentical = true;
+          //   }
+          // }
         }
 
         if (!isRowIdentical) {
-          deletedRows.add(originalRow);
-          newRows.add(targetRow);
+          deletedRowsKeys.set(originalRowKey, originalRowCursor);
+          deletedRows.add(originalRowCursor);
+          newRowsKeys.set(targetRowKey, targetRowCursor);
+          newRows.add(targetRowCursor);
+          // deletedRows.add(originalRow);
+          // newRows.add(targetRow);
         }
 
         originalRowCursor++;
@@ -117,29 +120,48 @@ class ExcelWorkbook {
 
       if (originalData.length > targetData.length) {
         for (let k = originalRowCursor; k < originalData.length; k++) {
-          deletedRows.add(originalData[k]);
+          // deletedRows.add(originalData[k]);
+          deletedRowsKeys.set(originalData[k].join(" "), k);
+          deletedRows.add(k);
         }
       }
       if (targetData.length > originalData.length) {
         for (let k = targetRowCursor; k < targetData.length; k++) {
-          newRows.add(targetData[k]);
+          // newRows.add(targetData[k]);
+          newRowsKeys.set(targetData[k].join(" "), k);
+          newRows.add(k);
         }
       }
 
-      for (const deletedRow of deletedRows) {
-        if (newRows.has(deletedRow)) {
-          newRows.delete(deletedRow);
-          deletedRows.delete(deletedRow);
+      for (const deletedRowKeyValuePair of deletedRowsKeys) {
+        const deletedRowKey = deletedRowKeyValuePair[0];
+        if (newRowsKeys.has(deletedRowKey)) {
+          newRows.delete(newRowsKeys.get(deletedRowKey));
+          newRowsKeys.delete(deletedRowKey);
+          deletedRows.delete(deletedRowKeyValuePair[1]);
+          deletedRowsKeys.delete(deletedRowKey);
         }
       }
+
+      const deletedRowData = originalData.filter((data, idx, _) =>
+        deletedRows.has(idx)
+      );
+      const newRowData = targetData.filter((data, idx, _) => newRows.has(idx));
+
+      // for (const deletedRow of deletedRows) {
+      //   if (newRows.has(deletedRow)) {
+      //     newRows.delete(deletedRow);
+      //     deletedRows.delete(deletedRow);
+      //   }
+      // }
       Xlsx.utils.book_append_sheet(
         newWorkbook,
-        Xlsx.utils.aoa_to_sheet([originalHeader, ...newRows]),
+        Xlsx.utils.aoa_to_sheet([originalHeader, ...newRowData]),
         overlapworksheetName
       );
       Xlsx.utils.book_append_sheet(
         deletedWorkbook,
-        Xlsx.utils.aoa_to_sheet([originalHeader, ...deletedRows]),
+        Xlsx.utils.aoa_to_sheet([originalHeader, ...deletedRowData]),
         overlapworksheetName
       );
     }
